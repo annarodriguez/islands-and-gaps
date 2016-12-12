@@ -1,0 +1,35 @@
+with ctr as (
+select count(id) as mothercount, 
+  owneruserid, 
+   extract(month from creationdate) as postmonth, 
+   extract(year from creationdate) as postyear, 
+   extract(YEAR from creationdate)*12 + extract(MONTH from creationdate) AS YM 
+from posts
+group by owneruserid, postyear, postmonth
+having count(id) >=3
+order by owneruserid, postyear, postmonth
+),
+
+ctr1 AS ( 
+SELECT    owneruserid ,
+          YM,
+          YM - DENSE_RANK() OVER (PARTITION BY owneruserid ORDER BY YM) AS G
+ FROM     ctr
+ ),
+ 
+ ctr2 As
+ (
+ SELECT owneruserid,
+          MIN(YM) AS Mn,
+          MAX(YM) AS Mx
+ FROM ctr1
+GROUP BY owneruserid, G
+HAVING MAX(YM)-MIN(YM) >=2 
+ )
+ 
+SELECT     c.displayname , o.mothercount, o.postmonth, o.postyear
+FROM         users AS c INNER JOIN
+                      ctr AS o ON c.ID = o.owneruserid
+INNER JOIN  ctr2 as c2 ON c2.owneruserID = o.owneruserid and o.YM between Mn and Mx
+group by c.displayname, o.postmonth, o.postyear, o.YM, o.mothercount
+order by c.displayname, o.YM
